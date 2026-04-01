@@ -4,9 +4,8 @@ Aplicación de ejemplo para cargar un árbol jerárquico desde un dict (SIU/JSON
 
 ## 📦 Estructura
 
-- `qtreeview03_carga DataFrame.py`: interfaz principal y lógica de inserción + filtrado + búsqueda/navegación.
+- `main.py`: interfaz principal y lógica de inserción + filtrado + búsqueda/navegación.
 - `siu2dict.py`: conversor de datos SIU a diccionario Python.
-- `Organigrama_actual.txt`, `backup/`, `tmp/`, etc.: datos de soporte/historicos.
 - `requirements.txt`: dependencias.
 
 ## ⚙️ Requisitos
@@ -28,16 +27,37 @@ python -m pip install -r requirements.txt
 
 ## ▶️ Ejecutar
 
-```bash
-cd c:\Users\mseguraa\Documents\Python\organigrama_app
-.venv-1\Scripts\python.exe "qtreeview03_carga DataFrame.py"
+### Windows (PowerShell)
+
+```powershell
+cd C:\Users\mseguraa\Documents\Python\organigrama_app
+python -m venv .venv-1
+.\.venv-1\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python "main.py"
 ```
 
-O si usas un entorno global:
+### Windows (cmd.exe)
+
+```cmd
+cd C:\Users\mseguraa\Documents\Python\organigrama_app
+python -m venv .venv-1
+.venv-1\Scripts\activate.bat
+python -m pip install -r requirements.txt
+python "main.py"
+```
+
+### Linux / macOS (bash/zsh)
 
 ```bash
-python "qtreeview03_carga DataFrame.py"
+cd ~/Documents/Python/organigrama_app
+python3 -m venv .venv-1
+source .venv-1/bin/activate
+pip install -r requirements.txt
+python "main.py"
 ```
+
+> Si el script usa `SIU_to_dict` pero no tienes acceso web, prueba primero con datos guardados localmente.
 
 ## 🧩 Funcionalidades incluidas
 
