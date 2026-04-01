@@ -1,8 +1,9 @@
 import sys
 import json
 from siu2dict import SIU_to_dict
-from PySide6.QtWidgets import (QApplication, QLabel, QProgressBar, QTreeView, QVBoxLayout, QHBoxLayout,
-                               QMainWindow, QWidget, QPushButton, QLineEdit, QHeaderView)
+from PySide6.QtWidgets import (QApplication, QLabel, QProgressBar, QStatusBar, QTreeView, 
+                               QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QPushButton, 
+                               QLineEdit, QHeaderView)
 from PySide6.QtCore import QModelIndex, QRegularExpression, Qt, QSortFilterProxyModel
 # Importación para el modelo de datos del QTreeView
 from PySide6.QtGui import QStandardItemModel, QStandardItem
@@ -71,6 +72,23 @@ class Mainwindow(QWidget):
         self.button_expand.setChecked(True)  # Por defecto, el árbol está expandido
         self.button_collapse = QPushButton("🔺")
 
+        # Botón de recargar
+        self.button_reload = QPushButton("⭯")
+        self.button_reload.setFixedSize(22, 22)
+
+        # Status bar
+        self.status_bar = QStatusBar()
+
+        # Barra de progreso
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setMaximumWidth(200)
+        self.progress_bar.setVisible(False)  # Oculta hasa que comience la carga
+
+        # Añadimos la barra de progreso a la barra de estado
+        self.status_bar.addPermanentWidget(self.progress_bar)
+        self.status_bar.showMessage("Listo")
+
     def _create_layout(self):
         # Layout horizontal para los cuadros de texto
         layoutH = QHBoxLayout()
@@ -90,8 +108,11 @@ class Mainwindow(QWidget):
         layoutH.addWidget(self.button_expand)
         layoutH.addWidget(self.button_collapse)
 
+        layoutH.addWidget(self.button_reload)
+
         self.setLayout(layoutV)
         layoutV.addWidget(self.tree_view)
+        layoutV.addWidget(self.status_bar)
         self.setLayout(layoutV)
       
     def _create_connections(self):
@@ -110,6 +131,8 @@ class Mainwindow(QWidget):
             # Usar expresión regular para buscar el texto en cualquier parte
             text = QRegularExpression.escape(text)  # Escapa caracteres especiales para que se busquen literalmente
             self.proxy_model.setFilterRegularExpression(f".*{text}.*")
+            # Actualiza la búsqueda para que se vuelva a calcular la lista de resultados con el nuevo filtro
+            self._find_in_tree(self.find_box.text())
         else:
             # Si está vacío, mostrar todo
             self.proxy_model.setFilterRegularExpression("")
@@ -153,6 +176,8 @@ class Mainwindow(QWidget):
             return
         
         # Obtenemos el índice de inicio (fila 0, columna 0 del PROXY)
+        # Buscamos desde la columna 0 (Código)
+        # Al usar MatchRecursive, Qt buscará en toda la jerarquía.
         start_index = self.proxy_model.index(0, 1)
 
         # Llamamos a match para obtener una lista de índices que coinciden con el texto en cualquier parte (columna -1)
@@ -167,8 +192,6 @@ class Mainwindow(QWidget):
         # Obtenemos la lista de resultados de la búsqueda
         if self.find_results:
             self.current_findex = 0
-            # Imprime para debuggear en consola
-            print(f"Encontrados: {len(self.find_results)}")
             # Llamamos a una función que mueva el "foco" al primer resultado
             self._update_selection() 
         else:
@@ -235,6 +258,26 @@ class Mainwindow(QWidget):
         self.tree_view.expandAll()
         self.tree_view.resizeColumnToContents(0)
         self.tree_view.resizeColumnToContents(1)   
+
+    def _get_tree_data(self):
+        # Función recursiva para convertir el modelo del QTreeView a un diccionario
+        def recursive(item):
+            node = {
+                "codigo": item.text(0),
+                "nombre": item.text(1),
+                "hijos": []
+            }
+            for row in range(item.rowCount()):
+                child_item = item.child(row, 0) # Obtenemos el hijo de la primera columna (código)
+                node["hijos"].append(recursive(child_item))
+            return node
+        
+        root_item = self.model.invisibleRootItem()
+        data = []
+        for row in range(root_item.rowCount()):
+            child_item = root_item.child(row, 0) # Obtenemos el hijo de la primera columna (código)
+            data.append(recursive(child_item))
+        return data
 
 if __name__ == "__main__":
         URL = "https://aplicaciones.aragon.es/siu_admin/download_descargar"

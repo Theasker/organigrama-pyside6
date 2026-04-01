@@ -146,10 +146,15 @@ class SIU_to_dict():
         recursive(data)
         return ""
 
+    def dict2json(self, data, indent=4):
+        import json
+        # Exportamos el diccionario a un archivo JSON bien formateado
+        with open('arbol_completo.json', 'w', encoding='utf-8') as json_file:
+            json.dump(data, json_file, ensure_ascii=False, indent=indent)
 
 if __name__ == "__main__":
     URL = "https://aplicaciones.aragon.es/siu_admin/download_descargar"
     siu = SIU_to_dict(URL)
     tree = siu.arbol_completo
-    print(siu.__str__(tree, 2))
+    siu.dict2json(tree)
     

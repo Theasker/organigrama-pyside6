@@ -19,3 +19,5 @@ __pycache__/
 *.csv
 *.xlsx
 tmp/
+temp*
+tmp*
