@@ -49,25 +49,27 @@ class Mainwindow(QWidget):
 
         self.find_next_button = QPushButton(">")
         self.find_next_button.setFixedSize(20, 22)
+        self.find_next_button.setEnabled(False)
 
         self.find_prev_button = QPushButton("<")
         self.find_prev_button.setFixedSize(20, 22)
+        self.find_prev_button.setEnabled(False)
 
-        self.lbl_find_items = QLabel("0/0")  # Etiqueta para mostrar el número de resultados y la posición actual
-        self.lbl_find_items.setFixedSize(40, 22)         
+        self.find_label_items = QLabel("0/0")  # Etiqueta para mostrar el número de resultados y la posición actual
+        self.find_label_items.setFixedSize(40, 22)         
 
         # Cuadro de filtrado
         self.filter_box = QLineEdit()
         self.filter_box.setPlaceholderText("Filtrar...")
         self.filter_box.setClearButtonEnabled(True)  # Botón para limpiar el texto
 
-        self.lbl_filter_items = QLabel("0/0")  # Etiqueta para mostrar el número de resultados y la posición actual
-        self.lbl_filter_items.setFixedSize(60, 22)
+        self.filter_label_items = QLabel("0/0")  # Etiqueta para mostrar el número de resultados y la posición actual
+        self.filter_label_items.setFixedSize(60, 22)
 
         # Agrupar y expandir arbol
-        self.expand_button = QPushButton("🔻")
-        self.expand_button.setChecked(True)  # Por defecto, el árbol está expandido
-        self.collapse_button = QPushButton("🔺")
+        self.button_expand = QPushButton("🔻")
+        self.button_expand.setChecked(True)  # Por defecto, el árbol está expandido
+        self.button_collapse = QPushButton("🔺")
 
     def _create_layout(self):
         # Layout horizontal para los cuadros de texto
@@ -80,13 +82,13 @@ class Mainwindow(QWidget):
         layoutH.addWidget(self.find_box)
         layoutH.addWidget(self.find_prev_button)
         layoutH.addWidget(self.find_next_button)
-        layoutH.addWidget(self.lbl_find_items)
+        layoutH.addWidget(self.find_label_items)
 
         layoutH.addWidget(self.filter_box)
-        layoutH.addWidget(self.lbl_filter_items)
+        layoutH.addWidget(self.filter_label_items)
         # Crear un marco que engloba los botones de expandir y colapsar para que estén juntos
-        layoutH.addWidget(self.expand_button)
-        layoutH.addWidget(self.collapse_button)
+        layoutH.addWidget(self.button_expand)
+        layoutH.addWidget(self.button_collapse)
 
         self.setLayout(layoutV)
         layoutV.addWidget(self.tree_view)
@@ -97,11 +99,11 @@ class Mainwindow(QWidget):
         self.filter_box.textChanged.connect(self._filter_tree) 
         # Señales para el cuadro de texto de búsqueda
         self.find_box.textChanged.connect(self._find_in_tree)        
-        # self.find_next_button.clicked.connect()
-        # self.find_prev_button.clicked.connect()
+        self.find_next_button.clicked.connect(self._next_result)
+        self.find_prev_button.clicked.connect(self._prev_result)
         # Señales para los botones de expandir y colapsar
-        self.expand_button.clicked.connect(self.tree_view.expandAll)
-        self.collapse_button.clicked.connect(self.tree_view.collapseAll)       
+        self.button_expand.clicked.connect(self.tree_view.expandAll)
+        self.button_collapse.clicked.connect(self.tree_view.collapseAll)       
 
     def _filter_tree(self, text):
         if text:
@@ -120,7 +122,7 @@ class Mainwindow(QWidget):
         # necesitarías otra función igual para el total real o 
         # guardarlo en una variable cuando cargas el JSON.
 
-        self.lbl_filter_items.setText(f"{visibles}/{self.total_organismos}")
+        self.filter_label_items.setText(f"{visibles}/{self.total_organismos}")
 
         self.tree_view.expandAll()  # Expande automáticamente para mostrar resultados
 
@@ -139,13 +141,15 @@ class Mainwindow(QWidget):
             total += self._count_visible_items(child_index)
         return total
 
-
     def _find_in_tree(self, text):
         # Si no hay texto, limpiamos los resultados y reseteamos el índice
         if not text:
             self.find_results = []
             self.current_findex = -1 # Índice actual en la lista de resultados
-            self.lbl_find_items.setText("0/0")
+            self.find_label_items.setText("0/0")
+            # Desactivamos los botones de siguiente/anterior
+            self.find_next_button.setEnabled(False)
+            self.find_prev_button.setEnabled(False)
             return
         
         # Obtenemos el índice de inicio (fila 0, columna 0 del PROXY)
@@ -160,7 +164,7 @@ class Mainwindow(QWidget):
             Qt.MatchContains | Qt.MatchRecursive # buscamos coincidencias que contengan el texto y que se busquen recursivamente en toda la jerarquía
         )
 
-        # 4. Obtenemos la lista de resultados de la búsqueda
+        # Obtenemos la lista de resultados de la búsqueda
         if self.find_results:
             self.current_findex = 0
             # Imprime para debuggear en consola
@@ -169,7 +173,13 @@ class Mainwindow(QWidget):
             self._update_selection() 
         else:
             self.current_findex = -1
-            self.lbl_find_items.setText("0/0")
+            self.find_label_items.setText("0/0")
+        
+        # Activamos o desactivamos los botones de siguiente/anterior según si hay resultados
+        hay_resultados = len(self.find_results) > 0
+        print(f"Hay resultados: {hay_resultados}")
+        self.find_next_button.setEnabled(hay_resultados)
+        self.find_prev_button.setEnabled(hay_resultados)
     
     # Función para actualizar la selección en el QTreeView según el resultado actual de la búsqueda
     def _update_selection(self):
@@ -185,7 +195,23 @@ class Mainwindow(QWidget):
             self.tree_view.scrollTo(target_index, QTreeView.PositionAtCenter)
 
             # Actualizamos la etiqueta con el número de resultados y la posición actual
-            self.lbl_find_items.setText(f"{self.current_findex + 1}/{len(self.find_results)}")
+            self.find_label_items.setText(f"{self.current_findex + 1}/{len(self.find_results)}")
+
+    def _next_result(self):
+        # Siguiente resultado: incrementamos el índice y actualizamos la selección
+        if self.find_results:
+            # Incrementamos y usamos el resto de la división para volver a 0 al llegar al final
+            self.current_findex = (self.current_findex + 1) % len(self.find_results)
+            print(f"Siguiente: {self.current_findex + 1}/{len(self.find_results)}")
+            self._update_selection()
+
+    def _prev_result(self):
+        # Salta al resultado anterior de búsqueda.
+        if self.find_results:
+            # En Python, el módulo con números negativos funciona de cine:
+            # (0 - 1) % 5 devuelve 4. Directo al último.
+            self.current_findex = (self.current_findex - 1) % len(self.find_results)
+            self._update_selection()
 
     def _make_tree(self, dct):
         # Función recursiva para llenar el modelo a partir del diccionario
