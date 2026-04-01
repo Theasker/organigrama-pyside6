@@ -1,0 +1,21 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.ruff_cache/
+
+# IDEs
+.vscode/
+.idea/
+
+
+# Datos temporales del SIU (si descargas algo local)
+*.json
+*.csv
+*.xlsx
+tmp/
