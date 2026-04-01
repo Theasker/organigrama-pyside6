@@ -1,6 +1,6 @@
 import sys
 import json
-from siu2dict import SIU_to_dict
+from siu2dict_openpyxl import SIU_to_dict
 from PySide6.QtWidgets import (QApplication, QLabel, QProgressBar, QStatusBar, QTreeView, 
                                QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QPushButton, 
                                QLineEdit, QHeaderView)
