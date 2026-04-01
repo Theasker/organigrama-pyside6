@@ -8,11 +8,12 @@ from PySide6.QtCore import QModelIndex, QRegularExpression, Qt, QSortFilterProxy
 # Importación para el modelo de datos del QTreeView
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 
-class Mainwindow(QWidget):
+class Mainwindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Organigrama Gobierno de Aragón")
         self.resize(1100, 600)
+
         # Variables para la búsqueda
         self.total_organismos = 0
         self.find_results = [] # Lista de índices que coinciden con la búsqueda
@@ -23,8 +24,7 @@ class Mainwindow(QWidget):
         self._create_connections()
 
     def _create_widgets(self):
-        # self.progress_bar = QProgressBar()
-        # self.progress_bar.setRange(0, 100)
+        # QTreeView para mostrar el organigrama _____________________________________
         self.tree_view = QTreeView()
         self.tree_view.resizeColumnToContents(0) # expande la primera columna (código)
         # Creamos el modelo de qtreeview que es el contenedor de los datos que se van a mostrar en el treeview
@@ -41,6 +41,7 @@ class Mainwindow(QWidget):
 
         # El QTreeView muestra el proxy, no el modelo directo
         self.tree_view.setModel(self.proxy_model)
+        # FIN QTreeView _______________________________________________________________
         
         # Cuadro de búsqueda
         self.find_box = QLineEdit()
@@ -77,19 +78,21 @@ class Mainwindow(QWidget):
         self.button_reload.setFixedSize(22, 22)
 
         # Status bar
-        self.status_bar = QStatusBar()
+        self.status_bar = self.statusBar()
+        self.status_bar.showMessage("Datos cargados correctamente.")
 
         # Barra de progreso
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setMaximumWidth(200)
         self.progress_bar.setVisible(False)  # Oculta hasa que comience la carga
-
-        # Añadimos la barra de progreso a la barra de estado
-        self.status_bar.addPermanentWidget(self.progress_bar)
-        self.status_bar.showMessage("Listo")
+        self.status_bar.addPermanentWidget(self.progress_bar) # La añadimos a la barra de estado, pero como widget permanente (a la derecha)
 
     def _create_layout(self):
+        # Contenedor principal (widget central del QMainWindow)
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+
         # Layout horizontal para los cuadros de texto
         layoutH = QHBoxLayout()
         layoutV = QVBoxLayout()
@@ -109,11 +112,12 @@ class Mainwindow(QWidget):
         layoutH.addWidget(self.button_collapse)
 
         layoutH.addWidget(self.button_reload)
-
-        self.setLayout(layoutV)
+        
         layoutV.addWidget(self.tree_view)
-        layoutV.addWidget(self.status_bar)
-        self.setLayout(layoutV)
+    
+        layoutV.addLayout(layoutH) # Añadimos el layout horizontal al vertical
+        # IMPORTANTE: El layout se pone en el central_widget, NO en self
+        self.central_widget.setLayout(layoutV) # Establecemos el layout vertical como el layout
       
     def _create_connections(self):
         # Señales para el cuadro de texto de filtrado
