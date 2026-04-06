@@ -4,23 +4,28 @@ import zipfile
 import openpyxl  # Mucho más ligero que Pandas
 import json
 
+URL = "https://aplicaciones.aragon.es/siu_admin/download_descargar"
+
 class SIU_to_dict():
-    def __init__(self, url):
-        # Descomenta estas líneas si quieres que el proceso sea automático al instanciar
-        # self.descargar_zip(url)
-        # self.descomprimir_zip()
-        
-        datos_raw = self.procesar_excel_ligero()
+    def __init__(self, url):       
+        # datos_raw = self.procesar_excel_ligero()
+        self.url = url
         self.arbol_completo = None
         
-        if datos_raw:
-            self.arbol_completo = self.crear_arbol(datos_raw)
-        else:
-            print("No se pudo crear el árbol porque no se cargó el Excel.")
+        # if datos_raw:
+        #     self.arbol_completo = self.crear_arbol(datos_raw)
+        # else:
+        #     print("No se pudo crear el árbol porque no se cargó el Excel.")
+
+    def existe_local(self, directorio="tmp"):
+        if not os.path.exists(directorio):
+            return False
+        # Devuelve True si hay algún .xlsx en la carpeta
+        return any(f.endswith(".xlsx") for f in os.listdir(directorio))
 
     def descargar_zip(self, url):
         try:
-            data = requests.get(url, timeout=60)
+            data = requests.get(url, timeout=20)
             data.raise_for_status()
             
             dir_target = "tmp"
@@ -29,18 +34,24 @@ class SIU_to_dict():
             final_zip_file = os.path.join(dir_target, 'local_copy.zip')
             with open(final_zip_file, 'wb') as file:
                 file.write(data.content)
+            return True # Exito
         except requests.exceptions.RequestException as e:
             print(f"Error en la descarga: {e}")
 
     def descomprimir_zip(self, fichero_zip=r"tmp/local_copy.zip"):
+        if not os.path.exists(fichero_zip):
+            print(f"El archivo {fichero_zip} no fue encontrado")
+            return
         try:
             dir_target = "tmp"
             os.makedirs(dir_target, exist_ok=True)
             with zipfile.ZipFile(fichero_zip, 'r') as zip_ref:
                 zip_ref.extractall(dir_target)
             print("Zip descomprimido correctamente")
+            return True # Exito
         except Exception as e:
             print(f"Error al descomprimir: {e}")
+            return False
 
     def procesar_excel_ligero(self, directorio="tmp"):
         try:
@@ -135,7 +146,7 @@ class SIU_to_dict():
             json.dump(data, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
-    URL = "https://aplicaciones.aragon.es/siu_admin/download_descargar"
+    
     siu = SIU_to_dict(URL)
     if siu.arbol_completo:
         siu.dict2json(siu.arbol_completo)

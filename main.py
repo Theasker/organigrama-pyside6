@@ -1,5 +1,4 @@
 import sys
-import json
 from siu2dict_openpyxl import SIU_to_dict
 from PySide6.QtWidgets import (QApplication, QLabel, QProgressBar, QStatusBar, QTreeView, 
                                QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QPushButton, 
@@ -7,6 +6,8 @@ from PySide6.QtWidgets import (QApplication, QLabel, QProgressBar, QStatusBar, Q
 from PySide6.QtCore import QModelIndex, QRegularExpression, Qt, QSortFilterProxyModel
 # Importación para el modelo de datos del QTreeView
 from PySide6.QtGui import QStandardItemModel, QStandardItem
+
+URL = "https://aplicaciones.aragon.es/siu_admin/download_descargar"
 
 class Mainwindow(QMainWindow):
     def __init__(self):
@@ -18,10 +19,44 @@ class Mainwindow(QMainWindow):
         self.total_organismos = 0
         self.find_results = [] # Lista de índices que coinciden con la búsqueda
         self.current_findex = -1 # Índice actual en la lista de resultados
-        
+
         self._create_widgets()
         self._create_layout()
         self._create_connections()
+
+    def _load_initial_data(self):
+        # Comprobamos si está el xlsx localmente, si no, lo descargamos y descomprimimos
+        siu = SIU_to_dict(URL)
+        if not siu.existe_local():
+            self.status_bar.showMessage("Descargando datos por primera vez (esto puede tardar un poco)...")
+            # Forzamos a la interfaz a mostrar el mensaje antes de bloquearse
+            QApplication.processEvents()
+            
+            if not siu.descargar_zip(siu.url):
+                self.status_bar.showMessage("Error al descargar los datos. Revisa tu conexión a internet.")
+                return # Salimos para no intentar descomprimir ni procesar el Excel si la descarga falló
+            
+            if not siu.descomprimir_zip():
+                self.status_bar.showMessage("Error al descomprimir los datos descargados.")
+                return # Salimos para no intentar procesar el Excel si la descompresión falló
+            
+        # Procesamos los datos (ya sea descargados o los que ya estaban)
+        self.status_bar.showMessage("Procesando datos...")
+        QApplication.processEvents()
+
+        datos_raw = siu.procesar_excel_ligero()
+
+        if datos_raw:
+            self.status_bar.showMessage("Creando árbol de datos...")
+            QApplication.processEvents()
+
+            dct = siu.crear_arbol(datos_raw)
+            self._make_tree(dct)
+
+            self.status_bar.showMessage("Datos cargados correctamente.")
+        else:
+            self.status_bar.showMessage("No se pudo cargar el Excel.")
+
 
     def _create_widgets(self):
         # QTreeView para mostrar el organigrama _____________________________________
@@ -79,7 +114,7 @@ class Mainwindow(QMainWindow):
 
         # Status bar
         self.status_bar = self.statusBar()
-        self.status_bar.showMessage("Datos cargados correctamente.")
+        self.status_bar.showMessage("Iniciando aplicación...")
 
         # Barra de progreso
         self.progress_bar = QProgressBar()
@@ -284,16 +319,13 @@ class Mainwindow(QMainWindow):
         return data
 
 if __name__ == "__main__":
-        URL = "https://aplicaciones.aragon.es/siu_admin/download_descargar"
-        siu = SIU_to_dict(URL)
-        dct = siu.arbol_completo
+        
+        # siu = SIU_to_dict(URL)
+        # dct = siu.arbol_completo
 
-        if dct is not None:
-            app = QApplication([])
-            window = Mainwindow()
-            window.show()
-            window._make_tree(dct)
-            sys.exit(app.exec())
-        else:
-            print("No se ha podido cargar el DataFrame")
-            sys.exit(1)
+        app = QApplication(sys.argv)
+        window = Mainwindow()
+        window.show()
+        window._load_initial_data()
+        sys.exit(app.exec())
+       
