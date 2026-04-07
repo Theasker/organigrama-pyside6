@@ -146,8 +146,13 @@ class SIU_to_dict():
             json.dump(data, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
-    
     siu = SIU_to_dict(URL)
     if siu.arbol_completo:
-        siu.dict2json(siu.arbol_completo)
-        print("Proceso completado exitosamente.")
+        # mostramos el árbol completo en consola
+        print(json.dumps(siu.arbol_completo, ensure_ascii=False, indent=4))
+    else:
+        # realizamos el proceso completo para obtener el árbol
+        datos_raw = siu.procesar_excel_ligero()
+        if datos_raw:
+            siu.arbol_completo = siu.crear_arbol(datos_raw)
+            print(json.dumps(siu.arbol_completo, ensure_ascii=False, indent=4))
