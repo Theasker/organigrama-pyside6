@@ -1,6 +1,6 @@
 import sys
 from siu2dict_openpyxl import SIU_to_dict
-from PySide6.QtWidgets import (QApplication, QLabel, QProgressBar, QStatusBar, QTreeView, 
+from PySide6.QtWidgets import (QApplication, QFrame, QLabel, QProgressBar, QStatusBar, QTreeView, 
                                QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QPushButton, 
                                QLineEdit, QHeaderView)
 from PySide6.QtCore import QModelIndex, QRegularExpression, Qt, QSortFilterProxyModel
@@ -23,6 +23,7 @@ class Mainwindow(QMainWindow):
         self._create_widgets()
         self._create_layout()
         self._create_connections()
+        self._create_style()
 
     def _load_initial_data(self):
         # Comprobamos si está el xlsx localmente, si no, lo descargamos y descomprimimos
@@ -41,13 +42,13 @@ class Mainwindow(QMainWindow):
                 return # Salimos para no intentar procesar el Excel si la descompresión falló
             
         # Procesamos los datos (ya sea descargados o los que ya estaban)
-        self.status_bar.showMessage("Procesando datos...")
+        self.status_bar.showMessage("Procesando datos...", 1000)
         QApplication.processEvents()
 
         datos_raw = siu.procesar_excel_ligero()
 
         if datos_raw:
-            self.status_bar.showMessage("Creando árbol de datos...")
+            self.status_bar.showMessage("Creando árbol de datos...", 1000)
             QApplication.processEvents()
 
             dct = siu.crear_arbol(datos_raw)
@@ -57,6 +58,24 @@ class Mainwindow(QMainWindow):
         else:
             self.status_bar.showMessage("No se pudo cargar el Excel.")
 
+    def _reload_data(self):
+        # Función para recargar los datos desde el Excel (después de una actualización)
+        
+        # Reset de variables para la búsqueda
+        self.total_organismos = 0 # Reiniciamos el contador de organismos
+        self.find_results = [] # Lista de índices que coinciden con la búsqueda
+        self.current_findex = -1 # Índice actual en la lista de resultados
+
+        self.model.clear() # Limpiamos el modelo actual
+        self.model.setHorizontalHeaderLabels(["Código", "Organismo"]) # Volvemos a establecer las cabeceras
+
+        # Si existe, borramos el contenido del directorio tmp para forzar a descargar el nuevo Excel
+        # borrar directiorio tmp
+        import shutil
+        import os
+        if os.path.exists("tmp"):
+            shutil.rmtree("tmp")
+        self._load_initial_data() # Volvemos a cargar los datos (esto forzará a descargar el nuevo Excel y procesarlo)
 
     def _create_widgets(self):
         # QTreeView para mostrar el organigrama _____________________________________
@@ -79,17 +98,18 @@ class Mainwindow(QMainWindow):
         # FIN QTreeView _______________________________________________________________
         
         # Cuadro de búsqueda
+        self.frame_find = QFrame()
         self.find_box = QLineEdit()
         self.find_box.setPlaceholderText("Buscar...")
-        self.find_box.setFixedSize(200, 22)  # Tamaño fijo para el cuadro de búsqueda
+        # self.find_box.setFixedSize(200, 22)  # Tamaño fijo para el cuadro de búsqueda
         self.find_box.setClearButtonEnabled(True)  # Botón para limpiar el texto
 
         self.find_next_button = QPushButton(">")
-        self.find_next_button.setFixedSize(20, 22)
+        # self.find_next_button.setFixedSize(20, 22)
         self.find_next_button.setEnabled(False)
 
         self.find_prev_button = QPushButton("<")
-        self.find_prev_button.setFixedSize(20, 22)
+        # self.find_prev_button.setFixedSize(20, 22)
         self.find_prev_button.setEnabled(False)
 
         self.find_label_items = QLabel("0/0")  # Etiqueta para mostrar el número de resultados y la posición actual
@@ -110,18 +130,10 @@ class Mainwindow(QMainWindow):
 
         # Botón de recargar
         self.button_reload = QPushButton("⭯")
-        self.button_reload.setFixedSize(22, 22)
 
         # Status bar
         self.status_bar = self.statusBar()
         self.status_bar.showMessage("Iniciando aplicación...")
-
-        # Barra de progreso
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setMaximumWidth(200)
-        self.progress_bar.setVisible(False)  # Oculta hasa que comience la carga
-        self.status_bar.addPermanentWidget(self.progress_bar) # La añadimos a la barra de estado, pero como widget permanente (a la derecha)
 
     def _create_layout(self):
         # Contenedor principal (widget central del QMainWindow)
@@ -135,13 +147,23 @@ class Mainwindow(QMainWindow):
         layoutV.addLayout(layoutH) # Añadimos el layout horizontal al vertical
         # layout.addWidget(self.progress_bar)        
 
-        layoutH.addWidget(self.find_box)
-        layoutH.addWidget(self.find_prev_button)
-        layoutH.addWidget(self.find_next_button)
-        layoutH.addWidget(self.find_label_items)
+        self.frame_find = QFrame() # Creamos un marco para agrupar los elementos de búsqueda
+        self.frame_find.setObjectName("frameVerde") # Para aplicar estilos específicos al marco de búsqueda
+        layout_find = QHBoxLayout(self.frame_find)
+        layout_find.addWidget(self.find_box)
+        layout_find.addWidget(self.find_prev_button)
+        layout_find.addWidget(self.find_next_button)
+        layout_find.addWidget(self.find_label_items)
+        layoutH.addWidget(self.frame_find)
 
-        layoutH.addWidget(self.filter_box)
-        layoutH.addWidget(self.filter_label_items)
+
+        self.frame_filter = QFrame() # Creamos un marco para agrupar los elementos de filtrado
+        self.frame_filter.setObjectName("frameAzul") # Para aplicar estilos específicos al marco
+        layout_filter = QHBoxLayout(self.frame_filter)
+        layout_filter.addWidget(self.filter_box)
+        layout_filter.addWidget(self.filter_label_items)
+        layoutH.addWidget(self.frame_filter)
+
         # Crear un marco que engloba los botones de expandir y colapsar para que estén juntos
         layoutH.addWidget(self.button_expand)
         layoutH.addWidget(self.button_collapse)
@@ -150,10 +172,32 @@ class Mainwindow(QMainWindow):
         
         layoutV.addWidget(self.tree_view)
     
-        layoutV.addLayout(layoutH) # Añadimos el layout horizontal al vertical
         # IMPORTANTE: El layout se pone en el central_widget, NO en self
         self.central_widget.setLayout(layoutV) # Establecemos el layout vertical como el layout
       
+    def _create_style(self):
+        # Estilo general oscuro
+        color_naranja = "%23FFA500"
+        self.setStyleSheet("""
+            QMainWindow, QWidget { background-color: #3d3d3d; color: #E0E0E0; font-family: 'Segoe UI'; }
+            QLineEdit, QComboBox { background-color: #4f4f4f; border: 1px solid #969696; padding: 4px; color: white; }
+                           
+            QPushButton { background-color: #969696; color: #3d3d3d; border-radius: 4px; font-weight: bold; padding: 5px; }
+            
+            /* Igualar tamaño de los botones */
+            QPushButton { min-width: 22px; min-height: 22px; }
+                           
+            /* Modo oscuro de titulo del QTreeView sin borde transparente */
+            QHeaderView::section { background-color: #454545; color: #E0E0E0; border: 1px solid #969696; padding: 2px; }
+                                          
+            /* Labels centrados */
+            QLabel { qproperty-alignment: 'AlignCenter'; background-color: #454545 }
+
+            /* Estilo de los marcos */
+            QFrame#frameVerde { border: 2px solid #A5D6A7; border-radius: 8px; background-color: #454545; }
+            QFrame#frameAzul { border: 2px solid #90CAF9; border-radius: 8px; background-color: #454545; }
+        """)
+
     def _create_connections(self):
         # Señales para el cuadro de texto de filtrado
         self.filter_box.textChanged.connect(self._filter_tree) 
@@ -163,7 +207,8 @@ class Mainwindow(QMainWindow):
         self.find_prev_button.clicked.connect(self._prev_result)
         # Señales para los botones de expandir y colapsar
         self.button_expand.clicked.connect(self.tree_view.expandAll)
-        self.button_collapse.clicked.connect(self.tree_view.collapseAll)       
+        self.button_collapse.clicked.connect(self.tree_view.collapseAll)  
+        self.button_reload.clicked.connect(self._reload_data) # Recarga los datos al hacer clic en el botón de recargar     
 
     def _filter_tree(self, text):
         if text:
@@ -259,6 +304,8 @@ class Mainwindow(QMainWindow):
             # Actualizamos la etiqueta con el número de resultados y la posición actual
             self.find_label_items.setText(f"{self.current_findex + 1}/{len(self.find_results)}")
 
+            self.status_bar.showMessage(f"Resultado {self.current_findex + 1} de {len(self.find_results)}")
+
     def _next_result(self):
         # Siguiente resultado: incrementamos el índice y actualizamos la selección
         if self.find_results:
@@ -319,10 +366,8 @@ class Mainwindow(QMainWindow):
         return data
 
 if __name__ == "__main__":
-        
         # siu = SIU_to_dict(URL)
         # dct = siu.arbol_completo
-
         app = QApplication(sys.argv)
         window = Mainwindow()
         window.show()
