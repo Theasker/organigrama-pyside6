@@ -2,10 +2,9 @@ import sys
 from siu2dict_openpyxl import SIU_to_dict
 from PySide6.QtWidgets import (QApplication, QFrame, QLabel, QProgressBar, QStatusBar, QTreeView, 
                                QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QPushButton, 
-                               QLineEdit, QHeaderView)
+                               QLineEdit, QHeaderView, QFileDialog)
 from PySide6.QtCore import QModelIndex, QRegularExpression, Qt, QSortFilterProxyModel
-# Importación para el modelo de datos del QTreeView
-from PySide6.QtGui import QStandardItemModel, QStandardItem
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QPalette, QColor, QIcon
 
 URL = "https://aplicaciones.aragon.es/siu_admin/download_descargar"
 
@@ -13,7 +12,8 @@ class Mainwindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Organigrama Gobierno de Aragón")
-        self.resize(1100, 600)
+        self.resize(1200, 600)
+        self.setWindowIcon(QIcon("assets/genfavicon-package/genfavicon-256.png"))
 
         # Variables para la búsqueda
         self.total_organismos = 0
@@ -22,6 +22,7 @@ class Mainwindow(QMainWindow):
 
         self._create_widgets()
         self._create_layout()
+        self._set_dark_palette() # Configura la paleta antes del estilo CSS
         self._create_connections()
         self._create_style()
 
@@ -80,6 +81,9 @@ class Mainwindow(QMainWindow):
     def _create_widgets(self):
         # QTreeView para mostrar el organigrama _____________________________________
         self.tree_view = QTreeView()
+        self.tree_view.setAlternatingRowColors(True)
+        self.tree_view.setIndentation(20)
+        self.tree_view.header().setMinimumSectionSize(50) # Asegura que la primera columna no sea minúscula
         self.tree_view.resizeColumnToContents(0) # expande la primera columna (código)
         # Creamos el modelo de qtreeview que es el contenedor de los datos que se van a mostrar en el treeview
         
@@ -130,10 +134,15 @@ class Mainwindow(QMainWindow):
 
         # Botón de recargar
         self.button_reload = QPushButton("⭯")
-
+        
         # Status bar
         self.status_bar = self.statusBar()
         self.status_bar.showMessage("Iniciando aplicación...")
+
+        # Versión
+        self.label_version = QLabel("v0.1.0 | Mauricio Segura Ariño (mseguraa@aragon.es)")
+        self.status_bar.addPermanentWidget(self.label_version) # Añade la etiqueta de versión a la derecha de la barra de estado
+
 
     def _create_layout(self):
         # Contenedor principal (widget central del QMainWindow)
@@ -169,15 +178,34 @@ class Mainwindow(QMainWindow):
         layoutH.addWidget(self.button_collapse)
 
         layoutH.addWidget(self.button_reload)
+
         
         layoutV.addWidget(self.tree_view)
     
         # IMPORTANTE: El layout se pone en el central_widget, NO en self
         self.central_widget.setLayout(layoutV) # Establecemos el layout vertical como el layout
       
+    def _set_dark_palette(self):
+        # Configuramos una paleta oficial para que el sistema sepa que estamos en modo oscuro
+        # Esto hace que elementos nativos (como las flechas del árbol) se dibujen claros
+        dark_palette = QPalette()
+        dark_palette.setColor(QPalette.Window, QColor(61, 61, 61))
+        dark_palette.setColor(QPalette.WindowText, Qt.white)
+        dark_palette.setColor(QPalette.Base, QColor(37, 37, 37))
+        dark_palette.setColor(QPalette.AlternateBase, QColor(45, 45, 45))
+        dark_palette.setColor(QPalette.ToolTipBase, Qt.black)
+        dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+        dark_palette.setColor(QPalette.Text, Qt.white)
+        dark_palette.setColor(QPalette.Button, QColor(85, 85, 85))
+        dark_palette.setColor(QPalette.ButtonText, Qt.white)
+        dark_palette.setColor(QPalette.BrightText, Qt.red)
+        dark_palette.setColor(QPalette.Highlight, QColor(255, 152, 0)) # Naranja highlight
+        dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+        
+        QApplication.setPalette(dark_palette)
+
     def _create_style(self):
         # Estilo general oscuro
-        color_naranja = "%23FFA500"
         self.setStyleSheet("""
             QMainWindow, QWidget { background-color: #3d3d3d; color: #E0E0E0; font-family: 'Segoe UI'; }
             QLineEdit, QComboBox { background-color: #4f4f4f; border: 1px solid #969696; padding: 4px; color: white; }
@@ -192,10 +220,48 @@ class Mainwindow(QMainWindow):
                                           
             /* Labels centrados */
             QLabel { qproperty-alignment: 'AlignCenter'; background-color: #454545 }
+            /* Estilo para el label de versión*/
+            QLabel#labelVersion { font-size: 10px; color: gray; margin-right: 10px;}
 
             /* Estilo de los marcos */
             QFrame#frameVerde { border: 2px solid #A5D6A7; border-radius: 8px; background-color: #454545; }
             QFrame#frameAzul { border: 2px solid #90CAF9; border-radius: 8px; background-color: #454545; }
+
+                           
+            /* --- QTreeView Styling (Nuevo) --- */
+            QTreeView {
+                background-color: #252525;
+                alternate-background-color: #2d2d2d;
+                border: 1px solid #333;
+                selection-background-color: #ff9800;
+                selection-color: black;
+                outline: none;
+                font-size: 13px;
+                /* Sin flechas personalizadas en el CSS para dejar que la QPalette las maneje nativamente */
+            }
+            
+            QTreeView::item {
+                height: 24px;
+                padding-left: 5px;
+            }
+            
+            QTreeView::item:hover {
+                background-color: #3d3d3d;
+            }
+            
+            QTreeView::item:selected {
+                background-color: #ff9800;
+                color: black;
+            }
+
+            /* Estilo para el editor (cuando se edita una celda) */
+            QTreeView QLineEdit {
+                background-color: #ffffff;
+                color: #333333;
+                padding: 0px;
+                margin: 0px;
+                border: 1px solid #ff9800;
+            }
         """)
 
     def _create_connections(self):
@@ -345,30 +411,13 @@ class Mainwindow(QMainWindow):
         self.tree_view.resizeColumnToContents(0)
         self.tree_view.resizeColumnToContents(1)   
 
-    def _get_tree_data(self):
-        # Función recursiva para convertir el modelo del QTreeView a un diccionario
-        def recursive(item):
-            node = {
-                "codigo": item.text(0),
-                "nombre": item.text(1),
-                "hijos": []
-            }
-            for row in range(item.rowCount()):
-                child_item = item.child(row, 0) # Obtenemos el hijo de la primera columna (código)
-                node["hijos"].append(recursive(child_item))
-            return node
         
-        root_item = self.model.invisibleRootItem()
-        data = []
-        for row in range(root_item.rowCount()):
-            child_item = root_item.child(row, 0) # Obtenemos el hijo de la primera columna (código)
-            data.append(recursive(child_item))
-        return data
 
 if __name__ == "__main__":
         # siu = SIU_to_dict(URL)
         # dct = siu.arbol_completo
         app = QApplication(sys.argv)
+        app.setStyle("Fusion") # Estilo común para mejor soporte de QSS
         window = Mainwindow()
         window.show()
         window._load_initial_data()

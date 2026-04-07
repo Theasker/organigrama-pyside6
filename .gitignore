@@ -8,6 +8,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 .ruff_cache/
+*.spec
+
+# generción ejecutable
+dist/
+build/
+
 
 # IDEs
 .vscode/
