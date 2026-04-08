@@ -401,8 +401,7 @@ class Mainwindow(QMainWindow):
                 self.total_organismos += 1
             elif isinstance(element, list):
                 for item in element:
-                    recursive(item, parent_item)
-            
+                    recursive(item, parent_item)     
         
         # Llenamos el modelo con los datos del diccionario
         recursive(dct, self.model.invisibleRootItem())
@@ -410,8 +409,6 @@ class Mainwindow(QMainWindow):
         self.tree_view.expandAll()
         self.tree_view.resizeColumnToContents(0)
         self.tree_view.resizeColumnToContents(1)   
-
-        
 
 if __name__ == "__main__":
         # siu = SIU_to_dict(URL)

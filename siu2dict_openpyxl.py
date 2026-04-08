@@ -156,3 +156,4 @@ if __name__ == "__main__":
         if datos_raw:
             siu.arbol_completo = siu.crear_arbol(datos_raw)
             print(json.dumps(siu.arbol_completo, ensure_ascii=False, indent=4))
+            siu.dict2json(siu.arbol_completo)

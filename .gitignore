@@ -27,3 +27,4 @@ build/
 tmp/
 temp*
 tmp*
+*.pdf
