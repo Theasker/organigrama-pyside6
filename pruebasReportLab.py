@@ -1,6 +1,6 @@
 import json
 
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Image, Table, TableStyle
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Image, Table, TableStyle, HRFlowable, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
@@ -63,17 +63,24 @@ class dict2pdf:
         
         # --- 4. Estilos de la tabla ---
         estilo_tabla = TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), # Alinear al centro vertical
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.grey), # Muestra los bordes
-            ('BOTTOMPADDING', (2,2), (-1,0), 5), # Espaciado inferior
-            ('TOPPADDING', (2,2), (-1,0), 5), # Espaciado superior
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), # Todas las celdas centradas verticalmente
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'), # Todas las celdas alineadas a la izquierda
+            ('GRID', (0,0), (-1,-1), 0.5, colors.grey), # Rejilla en toda la tabla
+
+            ('BOTTOMPADDING', (0,0), (-1, -1), 5), # Espaciado inferior
+            ('TOPPADDING', (0,0), (-1, -1), 5), # Espaciado superior
             ('BACKGROUND', (1, 0), (1, 0), colors.lightgrey),
         ])
         tabla_header.setStyle(estilo_tabla)
 
+        tabla_header.spaceAfter = 3 * mm # Espacio después de la tabla
+        
         # --- 5. Añadir a la story ---
         story.append(tabla_header)
+
+        # Línea separadora
+        linea = HRFlowable( width="100%", thickness=0, color=colors.black, spaceAfter=5, spaceBefore=5)
+        story.append(linea)
     
     def agregar_organo_a_pdf(self, datos, story, nivel=0, niveles_a_mostrar=3):
         # 1. extraer datos del diccionario actual
@@ -92,12 +99,15 @@ class dict2pdf:
 
         # 4. Añadir el párrafo
         story.append(Paragraph(texto, estilo_nodo))
-
+        
         # 5. Recorrer todos los hijos
-        for hijo in hijos[:3]: # Para pruebas sólo muestro 3 hijos
+        total = len(hijos)
+        for idx, hijo in enumerate(hijos):
             if nivel < niveles_a_mostrar:
+                es_utimo = (idx == total - 1)
                 self.agregar_organo_a_pdf(hijo, story, nivel + 1, niveles_a_mostrar)
-
+                if nivel == 0:
+                    story.append(Spacer(1, 5*mm))
 
     def _obtener_estilo(self, nivel):
         # Dame una escala de colores en degradado según el nivel
@@ -128,7 +138,7 @@ class dict2pdf:
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
         # Dibujar el número de página en la coordenada (x,y)
-        canvas.drawString(self.doc.width - 15, 15, f"Página {doc.page}")
+        canvas.drawString(self.doc.width - 50, 15, f"Página {doc.page}")
         canvas.restoreState()
 
 
@@ -144,7 +154,7 @@ if __name__ == "__main__":
         if datos_raw:
             siu.arbol_completo = siu.crear_arbol(datos_raw)
             # parámetros: diccionario de organismos, niveles a mostrar
-            pdf = dict2pdf(siu.arbol_completo, 1)
+            pdf = dict2pdf(siu.arbol_completo, 2)
         else:
             print("No se pudo crear el árbol porque no se cargó el Excel.")
 

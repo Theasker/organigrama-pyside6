@@ -1,6 +1,6 @@
 import sys
 from siu2dict_openpyxl import SIU_to_dict
-from PySide6.QtWidgets import (QApplication, QFrame, QLabel, QProgressBar, QStatusBar, QTreeView, 
+from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QLabel, QProgressBar, QStatusBar, QTreeView, 
                                QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QPushButton, 
                                QLineEdit, QHeaderView, QFileDialog)
 from PySide6.QtCore import QModelIndex, QRegularExpression, Qt, QSortFilterProxyModel
@@ -97,6 +97,12 @@ class Mainwindow(QMainWindow):
         self.proxy_model.setFilterKeyColumn(-1)  # Busca en todas las columnas
         self.proxy_model.setRecursiveFilteringEnabled(True)  # IMPORTANTE: filtra recursivamente en la jerarquía
 
+        # Nivel a mostrar
+        self.lbl_levels = QLabel("Niveles:")
+        self.combo_levels = QComboBox()
+        self.combo_levels.addItems(["Todos", "1", "2", "3", "4"])
+        self.combo_levels.setCurrentIndex(0) # Por defecto, mostrar todos los niveles
+
         # El QTreeView muestra el proxy, no el modelo directo
         self.tree_view.setModel(self.proxy_model)
         # FIN QTreeView _______________________________________________________________
@@ -165,13 +171,15 @@ class Mainwindow(QMainWindow):
         layout_find.addWidget(self.find_label_items)
         layoutH.addWidget(self.frame_find)
 
-
         self.frame_filter = QFrame() # Creamos un marco para agrupar los elementos de filtrado
         self.frame_filter.setObjectName("frameAzul") # Para aplicar estilos específicos al marco
         layout_filter = QHBoxLayout(self.frame_filter)
         layout_filter.addWidget(self.filter_box)
         layout_filter.addWidget(self.filter_label_items)
         layoutH.addWidget(self.frame_filter)
+
+        layoutH.addWidget(self.lbl_levels)
+        layoutH.addWidget(self.combo_levels)
 
         # Crear un marco que engloba los botones de expandir y colapsar para que estén juntos
         layoutH.addWidget(self.button_expand)
