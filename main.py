@@ -1,5 +1,10 @@
 import sys
+
+# Archivos locales
 from siu2dict_openpyxl import SIU_to_dict
+from dict2pdf import Dict2pdf
+
+# Librerías de PySide6
 from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QLabel, QProgressBar, QStatusBar, QTreeView, 
                                QVBoxLayout, QHBoxLayout, QMainWindow, QWidget, QPushButton, 
                                QLineEdit, QHeaderView, QFileDialog)
@@ -134,23 +139,30 @@ class Mainwindow(QMainWindow):
         # Nivel a mostrar
         self.lbl_levels = QLabel("Niveles:")
         self.combo_levels = QComboBox()
-        self.combo_levels.addItems(["Todos", "1", "2", "3", "4"])
+        self.combo_levels.addItems(["Todos", "1", "2", "3", "4", "5"])
         self.combo_levels.setCurrentIndex(0) # Por defecto, mostrar todos los niveles
 
         # Agrupar y expandir arbol
         self.button_expand = QPushButton("🔻")
+        self.button_expand.setToolTip("Expande todos los organismos")
         self.button_expand.setChecked(True)  # Por defecto, el árbol está expandido
         self.button_collapse = QPushButton("🔺")
+        self.button_collapse.setToolTip("Encoge todos los organismos")
+
+        # Botón imprimir PDF
+        self.button_print_pdf = QPushButton("🖨️")
+        self.button_print_pdf.setToolTip("Imprime el árbol de organismos visible")
 
         # Botón de recargar
         self.button_reload = QPushButton("⭯")
+        self.button_reload.setToolTip("Vuelve a descargar y recargar el árbol de organismos")
         
         # Status bar
         self.status_bar = self.statusBar()
         self.status_bar.showMessage("Iniciando aplicación...")
 
         # Versión
-        self.label_version = QLabel("v0.1.0 | Mauricio Segura Ariño (mseguraa@aragon.es)")
+        self.label_version = QLabel("v0.2.1 | Mauricio Segura Ariño (mseguraa@aragon.es)")
         self.status_bar.addPermanentWidget(self.label_version) # Añade la etiqueta de versión a la derecha de la barra de estado
 
     def _create_layout(self):
@@ -184,12 +196,12 @@ class Mainwindow(QMainWindow):
         layoutH.addWidget(self.lbl_levels)
         layoutH.addWidget(self.combo_levels)
 
-        # Crear un marco que engloba los botones de expandir y colapsar para que estén juntos
         layoutH.addWidget(self.button_expand)
         layoutH.addWidget(self.button_collapse)
 
-        layoutH.addWidget(self.button_reload)
+        layoutH.addWidget(self.button_print_pdf)
 
+        layoutH.addWidget(self.button_reload)
         
         layoutV.addWidget(self.tree_view)
     
@@ -285,7 +297,8 @@ class Mainwindow(QMainWindow):
         # Señales para los botones de expandir y colapsar
         self.combo_levels.currentIndexChanged.connect(self._on_level_change) # Señal para cambio de nivel a mostrar
         self.button_expand.clicked.connect(self.tree_view.expandAll)
-        self.button_collapse.clicked.connect(self.tree_view.collapseAll)  
+        self.button_collapse.clicked.connect(self.tree_view.collapseAll)
+        self.button_print_pdf.clicked.connect(self._export_to_pdf) # Señal para exportar a PDF
         self.button_reload.clicked.connect(self._reload_data) # Recarga los datos al hacer clic en el botón de recargar     
 
     def _filter_tree(self, text):
@@ -448,6 +461,63 @@ class Mainwindow(QMainWindow):
         
         # Opcional: Si había un filtro de texto aplicado, lo relanzamos
         self._filter_tree(self.filter_box.text())
+
+    def _get_visible_data_as_dict(self, parent_index=QModelIndex):       
+        # Función interna para extraer nodos recursivamente
+        def extract_recursive(idx_codigo):
+            # idx_codigo apunta a la columna 0 (Código)
+
+            # Obtenemos el nombre (que está en la columna 1 de la misma fila)
+            idx_nombre = self.proxy_model.index(idx_codigo.row(), 1, idx_codigo.parent())
+
+            codigo = self.proxy_model.data(idx_codigo)
+            nombre = self.proxy_model.data(idx_nombre)
+
+            hijos = []
+            # Miramos cuántas filas (hijos) tiene este nodo en el PROXY
+            filas_hijo = self.proxy_model.rowCount(idx_codigo)
+
+            # Recorremos los hijos de este nodo en el proxy
+            for r in range(filas_hijo):
+                # Obtenemos el índice del hijo (columna 0)
+                child_idx = self.proxy_model.index(r, 0, idx_codigo)
+                hijos.append(extract_recursive(child_idx))
+
+            return {
+                "codigo": str(codigo),
+                "nombre": str(nombre),
+                "hijos": hijos
+            }
+        
+        # Empezamos por la raiz (fila 0 del proxy)
+        root_idx = self.proxy_model.index(0, 0)
+
+        if not root_idx.isValid():
+            return None
+        
+        return extract_recursive(root_idx)
+
+    def _export_to_pdf(self):
+        # Obtenemos el diccionario "espejo" de lo que se ve en pantalla
+        datos_visibles = self._get_visible_data_as_dict()
+
+        if not datos_visibles:
+            self.status_bar.showMessage("No hay datos visibles para exportar.", 3000)
+            return
+
+        # Preguntar dónde guardar el archivo
+        path, _ = QFileDialog.getSaveFileName(self, "Guardar PDF", "organigrama_visible.pdf", "Archivos PDF (*.pdf)")
+
+        if path:
+            try:
+                # Llamamos al PDF. 
+                # IMPORTANTE: Como el diccionario YA está filtrado por niveles y texto,
+                # le decimos que muestre nivel "99" (o sea, todo lo que le enviamos).
+                Dict2pdf(datos_visibles, niveles_a_mostrar=99, filename=path, nivel=self.combo_levels.currentText())
+                self.status_bar.showMessage(f"PDF generado con éxito: {path}", 5000)
+            except Exception as e:
+                self.status_bar.showMessage(f"Error: {e}", 5000)
+
 
 if __name__ == "__main__":
         # siu = SIU_to_dict(URL)
