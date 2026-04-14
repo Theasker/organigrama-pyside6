@@ -20,6 +20,9 @@ class Mainwindow(QMainWindow):
         self.find_results = [] # Lista de índices que coinciden con la búsqueda
         self.current_findex = -1 # Índice actual en la lista de resultados
 
+        # Variable para filtrado por niveles
+        self.datos_originales = None # Para guardar los datos originales sin filtrar
+
         self._create_widgets()
         self._create_layout()
         self._set_dark_palette() # Configura la paleta antes del estilo CSS
@@ -53,6 +56,7 @@ class Mainwindow(QMainWindow):
             QApplication.processEvents()
 
             dct = siu.crear_arbol(datos_raw)
+            self.datos_originales = dct # Guardamos los datos originales
             self._make_tree(dct)
 
             self.status_bar.showMessage("Datos cargados correctamente.")
@@ -97,12 +101,6 @@ class Mainwindow(QMainWindow):
         self.proxy_model.setFilterKeyColumn(-1)  # Busca en todas las columnas
         self.proxy_model.setRecursiveFilteringEnabled(True)  # IMPORTANTE: filtra recursivamente en la jerarquía
 
-        # Nivel a mostrar
-        self.lbl_levels = QLabel("Niveles:")
-        self.combo_levels = QComboBox()
-        self.combo_levels.addItems(["Todos", "1", "2", "3", "4"])
-        self.combo_levels.setCurrentIndex(0) # Por defecto, mostrar todos los niveles
-
         # El QTreeView muestra el proxy, no el modelo directo
         self.tree_view.setModel(self.proxy_model)
         # FIN QTreeView _______________________________________________________________
@@ -133,6 +131,12 @@ class Mainwindow(QMainWindow):
         self.filter_label_items = QLabel("0/0")  # Etiqueta para mostrar el número de resultados y la posición actual
         self.filter_label_items.setFixedSize(60, 22)
 
+        # Nivel a mostrar
+        self.lbl_levels = QLabel("Niveles:")
+        self.combo_levels = QComboBox()
+        self.combo_levels.addItems(["Todos", "1", "2", "3", "4"])
+        self.combo_levels.setCurrentIndex(0) # Por defecto, mostrar todos los niveles
+
         # Agrupar y expandir arbol
         self.button_expand = QPushButton("🔻")
         self.button_expand.setChecked(True)  # Por defecto, el árbol está expandido
@@ -148,7 +152,6 @@ class Mainwindow(QMainWindow):
         # Versión
         self.label_version = QLabel("v0.1.0 | Mauricio Segura Ariño (mseguraa@aragon.es)")
         self.status_bar.addPermanentWidget(self.label_version) # Añade la etiqueta de versión a la derecha de la barra de estado
-
 
     def _create_layout(self):
         # Contenedor principal (widget central del QMainWindow)
@@ -280,6 +283,7 @@ class Mainwindow(QMainWindow):
         self.find_next_button.clicked.connect(self._next_result)
         self.find_prev_button.clicked.connect(self._prev_result)
         # Señales para los botones de expandir y colapsar
+        self.combo_levels.currentIndexChanged.connect(self._on_level_change) # Señal para cambio de nivel a mostrar
         self.button_expand.clicked.connect(self.tree_view.expandAll)
         self.button_collapse.clicked.connect(self.tree_view.collapseAll)  
         self.button_reload.clicked.connect(self._reload_data) # Recarga los datos al hacer clic en el botón de recargar     
@@ -396,27 +400,54 @@ class Mainwindow(QMainWindow):
             self.current_findex = (self.current_findex - 1) % len(self.find_results)
             self._update_selection()
 
-    def _make_tree(self, dct):
-        # Función recursiva para llenar el modelo a partir del diccionario
-        def recursive(element, parent_item):
+    def _make_tree(self, dct, limite_nivel=None):
+        # 1. Limpiamos el modelo y contadores antes de empezar
+        self.model.clear()
+        self.model.setHorizontalHeaderLabels(["Código", "Organismo"])
+        self.total_organismos = 0
+
+        # 2. Nueva función recursiva con control de profundidad
+        def recursive(element, parent_item, nivel_actual=0):
+            # Si hay límite y lo hemos superado, dejamos de procesar hijos
+            if limite_nivel is not None and nivel_actual > limite_nivel:
+                return
+
             if isinstance(element, dict):
                 code_item = QStandardItem(element.get("codigo", ""))
                 name_item = QStandardItem(element.get("nombre", ""))
                 parent_item.appendRow([code_item, name_item])
+                self.total_organismos += 1 # Contador de organismos
+
+                # Solo seguimos con los hijos si no hemos llegado al límite
                 for child in element.get("hijos", []):
-                    recursive(child, code_item)
-                # Contador de organismos
-                self.total_organismos += 1
+                    recursive(child, code_item, nivel_actual + 1)
             elif isinstance(element, list):
                 for item in element:
-                    recursive(item, parent_item)     
+                    recursive(item, parent_item, nivel_actual)     
         
-        # Llenamos el modelo con los datos del diccionario
-        recursive(dct, self.model.invisibleRootItem())
-        # Estira la primera columna para mostrar el código completo
+        # 3. Lanzamos la recursión (empezamos en nivel 0 para la raíz)
+        recursive(dct, self.model.invisibleRootItem(), 0)
+
         self.tree_view.expandAll()
         self.tree_view.resizeColumnToContents(0)
-        self.tree_view.resizeColumnToContents(1)   
+        self.tree_view.resizeColumnToContents(1)
+
+    def _on_level_change(self):
+        if not self.datos_originales:
+            return # Si no tenemos datos cargados, no hacemos nada
+        
+        limite_nivel = self.combo_levels.currentText()
+
+        if limite_nivel == "Todos":
+            limite_nivel = None
+        else:
+            limite_nivel = int(limite_nivel) - 1 # Porque el nivel 1 es el índice 0 en la función recursiva
+        
+        # Reconstruimos el árbol desde los datos fuente
+        self._make_tree(self.datos_originales, limite_nivel=limite_nivel)
+        
+        # Opcional: Si había un filtro de texto aplicado, lo relanzamos
+        self._filter_tree(self.filter_box.text())
 
 if __name__ == "__main__":
         # siu = SIU_to_dict(URL)
