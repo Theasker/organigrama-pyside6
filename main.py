@@ -1,4 +1,5 @@
 import sys
+import settings
 
 # Archivos locales
 from siu2dict_openpyxl import SIU_to_dict
@@ -11,14 +12,14 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QLabel, QProgres
 from PySide6.QtCore import QModelIndex, QRegularExpression, Qt, QSortFilterProxyModel
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QPalette, QColor, QIcon
 
-URL = "https://aplicaciones.aragon.es/siu_admin/download_descargar"
+URL = settings.URL_SIU
 
 class Mainwindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Organigrama Gobierno de Aragón")
+        self.setWindowTitle(f"Organigrama Gobierno de Aragón {settings.VERSION}")
         self.resize(1200, 600)
-        self.setWindowIcon(QIcon("assets/genfavicon-package/genfavicon-256.png"))
+        self.setWindowIcon(QIcon(settings.FAVICON_PATH))
 
         # Variables para la búsqueda
         self.total_organismos = 0
@@ -162,7 +163,7 @@ class Mainwindow(QMainWindow):
         self.status_bar.showMessage("Iniciando aplicación...")
 
         # Versión
-        self.label_version = QLabel("v0.2.1 | Mauricio Segura Ariño (mseguraa@aragon.es)")
+        self.label_version = QLabel(f"{settings.VERSION} | {settings.AUTHOR} ({settings.EMAIL})")
         self.status_bar.addPermanentWidget(self.label_version) # Añade la etiqueta de versión a la derecha de la barra de estado
 
     def _create_layout(self):
@@ -375,7 +376,6 @@ class Mainwindow(QMainWindow):
         
         # Activamos o desactivamos los botones de siguiente/anterior según si hay resultados
         hay_resultados = len(self.find_results) > 0
-        print(f"Hay resultados: {hay_resultados}")
         self.find_next_button.setEnabled(hay_resultados)
         self.find_prev_button.setEnabled(hay_resultados)
     
@@ -513,7 +513,12 @@ class Mainwindow(QMainWindow):
                 # Llamamos al PDF. 
                 # IMPORTANTE: Como el diccionario YA está filtrado por niveles y texto,
                 # le decimos que muestre nivel "99" (o sea, todo lo que le enviamos).
-                Dict2pdf(datos_visibles, niveles_a_mostrar=99, filename=path, nivel=self.combo_levels.currentText())
+                Dict2pdf(
+                    datos_visibles, 
+                    niveles_a_mostrar=99, 
+                    filename=path, 
+                    info_nivel=self.combo_levels.currentText()
+                )
                 self.status_bar.showMessage(f"PDF generado con éxito: {path}", 5000)
             except Exception as e:
                 self.status_bar.showMessage(f"Error: {e}", 5000)

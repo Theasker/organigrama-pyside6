@@ -1,3 +1,4 @@
+import settings
 import json
 
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Image, Table, TableStyle, HRFlowable, Spacer
@@ -36,7 +37,8 @@ class Dict2pdf:
     
     def _cabecera_doc(self, story):
         # --- 1. Imágen ---
-        image_path = "assets/GobiernodeAragon-1-Positivo-RGB-color.png"
+        #image_path = "assets/GobiernodeAragon-1-Positivo-RGB-color.png"
+        image_path = settings.LOGO_PATH
         img = Image(image_path)
         aspect_ratio = img.imageWidth / img.imageHeight
         # tamaño de un máximo de 30mm de la imagen
@@ -139,7 +141,6 @@ class Dict2pdf:
         # Dibujar el número de página en la coordenada (x,y)
         canvas.drawString(self.doc.width - 50, 15, f"Página {doc.page}")
         canvas.restoreState()
-
 
 if __name__ == "__main__":
     from siu2dict_openpyxl import SIU_to_dict, URL
